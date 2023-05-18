@@ -1,0 +1,15 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: "2.3"
+services:
+  kafka-setup:
+    container_name: kafka-setup
+    environment:
+    - DATAHUB_PRECREATE_TOPICS=${DATAHUB_PRECREATE_TOPICS:-false}
+    - KAFKA_BOOTSTRAP_SERVER=broker:29092
+    - KAFKA_ZOOKEEPER_CONNECT=zookeeper:21811
+    hostname: kafka-setup
+    image: ${DATAHUB_KAFKA_SETUP_IMAGE:-linkedin/datahub-kafka-setup}:${DATAHUB_VERSION:-head}
+    labels:
+      datahub_setup_job: true

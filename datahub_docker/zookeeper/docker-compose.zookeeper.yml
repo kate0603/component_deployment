@@ -1,0 +1,19 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: "2.3"
+services:
+  zookeeper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zookeeper
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=21811
+      - ZOOKEEPER_TICK_TIME=2000
+    hostname: zookeeper
+    image: confluentinc/cp-zookeeper:7.2.2
+    ports:
+      - 21811:2181
+    volumes:
+      - /opt/datahub_docker/zkdata:/var/lib/zookeeper/data

@@ -1,0 +1,15 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: '2.3'
+services:
+  elasticsearch-setup:
+    labels:
+      datahub_setup_job: true
+    container_name: elasticsearch-setup
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_PROTOCOL=http
+    hostname: elasticsearch-setup
+    image: ${DATAHUB_ELASTIC_SETUP_IMAGE:-linkedin/datahub-elasticsearch-setup}:${DATAHUB_VERSION:-head}

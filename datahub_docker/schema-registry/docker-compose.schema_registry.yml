@@ -1,0 +1,18 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: "2.3"
+services:
+  schema-registry:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: schema-registry
+    environment:
+      - SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS=broker:29092
+      - SCHEMA_REGISTRY_HOST_NAME=schemaregistry
+      - SCHEMA_REGISTRY_KAFKASTORE_SECURITY_PROTOCOL=PLAINTEXT
+    hostname: schema-registry
+    image: confluentinc/cp-schema-registry:7.2.2
+    ports:
+      - 8081:8081

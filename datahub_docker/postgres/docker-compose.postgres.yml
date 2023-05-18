@@ -1,0 +1,18 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: "2.3"
+services:
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: postgres:12.3
+    environment:
+      - POSTGRES_USER=datahub
+      - POSTGRES_PASSWORD=datahub
+      - DATAHUB_DB=datahub
+    ports:
+      - 5432:5432
+    volumes:
+      - postgresdata:/var/lib/postgresql
+      - /opt/datahub_docker/postgres/postgresdata:/var/lib/postgresql/data

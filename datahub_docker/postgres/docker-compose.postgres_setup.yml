@@ -1,0 +1,17 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: '2.3'
+services:
+  postgres-setup:
+    container_name: postgres-setup
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USERNAME=datahub
+      - POSTGRES_PASSWORD=datahub
+      - DATAHUB_DB_NAME=datahub
+    hostname: postgres-setup
+    image: ${DATAHUB_POSTGRES_SETUP_IMAGE:-acryldata/datahub-postgres-setup}:${DATAHUB_VERSION:-head}
+    labels:
+      datahub_setup_job: true

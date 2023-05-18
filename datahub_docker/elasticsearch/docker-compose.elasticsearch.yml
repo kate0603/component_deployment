@@ -1,0 +1,25 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: '2.3'
+services:
+  elasticsearch:
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms256m -Xmx512m -Dlog4j2.formatMsgNoLookups=true
+    healthcheck:
+      retries: 4
+      start_period: 2m
+      test:
+        - CMD-SHELL
+        - curl -sS --fail 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=0s'
+          || exit 1
+    hostname: elasticsearch
+    image: elasticsearch:7.10.1
+    mem_limit: 1g
+    ports:
+      - ${DATAHUB_MAPPED_ELASTIC_PORT:-9200}:9200
+    volumes:
+      - /opt/datahub_docker/esdata:/usr/share/elasticsearch/data

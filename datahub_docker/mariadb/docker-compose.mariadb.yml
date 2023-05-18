@@ -1,0 +1,21 @@
+networks:
+  default:
+    name: datahub_network_docker
+version: '2.3'
+services:
+  mariadb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mariadb
+    hostname: mariadb
+    image: datahub-mariadb
+    environment:
+      - MYSQL_DATABASE=datahub
+      - MYSQL_USER=datahub
+      - MYSQL_PASSWORD=datahub
+      - MYSQL_ROOT_PASSWORD=datahub
+    ports:
+      - 33060:3306
+    volumes:
+      - /opt/datahub_docker/mysqldata:/var/lib/mysql/data
