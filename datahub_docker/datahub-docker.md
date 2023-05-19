@@ -49,9 +49,8 @@ python3.7 -m datahub docker quickstart --quickstart-compose-file /opt/datahub/do
 ### 数据存储层容器
 Datahub需要一个持久化的存储层来存储元数据。因此，可以使用一个独立的容器来运行数据库，如MySQL或PostgreSQL。
 #### mariadb
+用来存储数据相关的元数据信息、数据血缘关系、数据集的 schema 信息以及 DataHub 用户、团队和权限信息等等。
 
-- 流程
-   - 创建mariadb容器后，执行一次mariadb-setup，用于初始化。
 - 测试
    - 数据库连接客户端工具 连接测试。
 - 常见问题
@@ -59,6 +58,8 @@ Datahub需要一个持久化的存储层来存储元数据。因此，可以使�
    - init.sql未执行：docker-entrypoint-initdb.d 文件夹只会在创建(实例化)容器时运行一次，因此实际上必须执行 docker-compose up -d --force-recreate
 - 备注
    - 创建容器时init.sql可不执行，因为在setup中会执行。
+#### mysql-setup
+配置 MySQL 数据库的数据库连接、访问凭证、数据库名称等参数，以便 DataHub 在此基础上构建自身的数据管理功能。
 ```shell
 Attaching to mysql-setup
 mysql-setup  | 2023/05/17 07:04:28 Waiting for: tcp://mariadb:3306
@@ -124,15 +125,16 @@ mysql-setup exited with code 0
 ```
 
 #### postgres
+ DataHub 的默认数据库，它扮演着 DataHub 的核心数据库角色，存储了数据相关的元数据信息、数据血缘关系、数据集的 schema 信息以及 DataHub 用户、团队和权限信息等重要的数据。
 
-- 流程
-   - 创建postgres后，执行一次postgres-setup，用于初始化。
 - 测试
    - 数据库连接客户端工具 连接测试。
 - 常见问题
    - 切换数据库后， 少了 【analytics】【ingestion】【govern-domain】等：登出再登录即可。首次登录缺少[部分数据](https://github.com/kate0603/component_deployment/blob/main/datahub_docker/datahub/fix_db.xlsx)。
 - 备注
    - 创建容器时init.sql可不执行，因为在setup中会执行。
+#### postgres-setup
+配置 PostgreSQL 数据库的数据库连接、访问凭证、数据库名称等参数，以便 DataHub 在此基础上构建自身的数据管理功能。
 ```shell
 Attaching to postgres-setup
 postgres-setup  | 2023/05/18 07:41:26 Waiting for: tcp://postgres:5432
@@ -204,12 +206,11 @@ postgres-setup  | DROP TABLE
 postgres-setup  | 2023/05/18 07:41:26 Command finished successfully.
 postgres-setup exited with code 0
 ```
-
 ### 元数据搜索容器
 Datahub还需要一个用于搜索元数据的容器。您可以使用Apache Solr或Elasticsearch作为搜索引擎，并使用独立容器将其部署到系统中。
+#### elasticsearch
+Elasticsearch 支持丰富的全文搜索和文本分析功能，能够更好地支持数据发现和探索等应用场景。
 
-- 流程
-   - 创建elasticsearch后，执行一次elasticsearch-setup，用于初始化。
 - 测试
 ```shell
 # 可以使用以下 curl 命令测试 DataHub Elasticsearch 是否已成功部署：
@@ -233,6 +234,32 @@ curl http://localhost:9200/
 }
 # 如果出现错误或其他输出，请检查 Elasticsearch 的配置和日志，以查找问题。
 ```
+
+- 常用操作命令
+```shell
+# 删除
+curl -X DELETE "http://localhost:9200/datahubpolicyindex_v2?pretty"
+# 获取
+curl -X GET "http://localhost:9200/my_index/_search?q=my_field:my_value&pretty"
+# 增加alias
+curl -X POST "http://localhost:9200/_aliases?pretty" -H 'Content-Type: application/json' -d'{"actions" : [{ "add" : { "index" : "datahub-policy-index_v2", "alias" : "datahubpolicyindex_v2" } }]}'
+# 增加属性
+curl -X PUT "http://localhost:9200/datahub-policy-index_v2/_mapping" -H 'Content-Type: application/json' -d'{"properties": {"lastUpdatedTimestamp": {"type": "date"}}}'
+
+```
+
+- DataHub Elasticsearch 中存储的所有索引的列表
+   -  datahub-frontend** ：DataHub 前端 Web 应用程序使用的存储索引；通常包含用户和团队信息。
+   - datahub-gmsauditlog** ：DataHub GMS 使用的审核日志记录的索引；用于记录所有提交到 DataHub 的操作。
+   - datahub-**lineage** ：DataHub 程序的血缘数据索引，用于跟踪数据资产之间的关系。
+   - datahub-mce** ：DataHub GMS 使用的 MCE（Metadata Change Event）索引，用于记录 DataHub 中发生的所有元数据更改。
+   - datahub-metadata** ：DataHub 中存储元数据的索引，包括数据集、数据源和其他相关对象的信息。
+   - datahub-**policyindex** ：DataHub 中存储策略配置的索引，用于记录策略配置信息。
+   -  datahub-**search** ：DataHub 中存储搜索相关信息的索引，包括搜索结果、过滤器和其他相关信息。datahub-tag** ：DataHub 中存储标签的索引，用于标识数据集、数据源和其他相关对象。
+
+注意：索引名称中带有 "**" 的部分是通配符，表示该索引名称可能包含额外的标识符，例如日期或时间戳。这通常是由于索引自动滚动或分割导致的。
+#### elasticsearch-setup
+配置 Elasticsearch 的索引存储位置、版本、访问凭证等参数，以便 DataHub 在此基础上构建自身的数据管理功能。
 ```shell
 Attaching to elasticsearch-setup
 elasticsearch-setup  | 2023/05/17 08:00:50 Waiting for: http://elasticsearch:9200
@@ -301,40 +328,15 @@ elasticsearch-setup  | sed: /index/usage-event/datahub_usage_event: No such file
 elasticsearch-setup  | {"acknowledged":true}2023/05/17 08:00:51 Command finished successfully.
 elasticsearch-setup exited with code 0
 ```
-
-- 常用操作命令
-```shell
-# 删除
-curl -X DELETE "http://localhost:9200/datahubpolicyindex_v2?pretty"
-# 获取
-curl -X GET "http://localhost:9200/my_index/_search?q=my_field:my_value&pretty"
-# 增加alias
-curl -X POST "http://localhost:9200/_aliases?pretty" -H 'Content-Type: application/json' -d'{"actions" : [{ "add" : { "index" : "datahub-policy-index_v2", "alias" : "datahubpolicyindex_v2" } }]}'
-# 增加属性
-curl -X PUT "http://localhost:9200/datahub-policy-index_v2/_mapping" -H 'Content-Type: application/json' -d'{"properties": {"lastUpdatedTimestamp": {"type": "date"}}}'
-
-```
-
-- DataHub Elasticsearch 中存储的所有索引的列表
-   -  datahub-frontend** ：DataHub 前端 Web 应用程序使用的存储索引；通常包含用户和团队信息。
-   - datahub-gmsauditlog** ：DataHub GMS 使用的审核日志记录的索引；用于记录所有提交到 DataHub 的操作。
-   - datahub-**lineage** ：DataHub 程序的血缘数据索引，用于跟踪数据资产之间的关系。
-   - datahub-mce** ：DataHub GMS 使用的 MCE（Metadata Change Event）索引，用于记录 DataHub 中发生的所有元数据更改。
-   - datahub-metadata** ：DataHub 中存储元数据的索引，包括数据集、数据源和其他相关对象的信息。
-   - datahub-**policyindex** ：DataHub 中存储策略配置的索引，用于记录策略配置信息。
-   -  datahub-**search** ：DataHub 中存储搜索相关信息的索引，包括搜索结果、过滤器和其他相关信息。datahub-tag** ：DataHub 中存储标签的索引，用于标识数据集、数据源和其他相关对象。
-
-注意：索引名称中带有 "**" 的部分是通配符，表示该索引名称可能包含额外的标识符，例如日期或时间戳。这通常是由于索引自动滚动或分割导致的。
-
 ### 消息队列容器
 Datahub使用Kafka作为消息队列，以收集和处理元数据。因此，您可以使用一个独立的Kafka容器来管理消息队列。
 #### zookeeper
+Kafka 依赖于 Zookeeper 来实现元数据管理、协调、故障转移等重要功能，以确保 Kafka 集群的高可用性和可靠性。Kafka 借助 Zookeeper 来协调以下问题：
 
-- Kafka 依赖于 Zookeeper 来实现元数据管理、协调、故障转移等重要功能，以确保 Kafka 集群的高可用性和可靠性。Kafka 借助 Zookeeper 来协调以下问题：
-   - Broker 认证：Kafka Broker 使用 Zookeeper 来实现身份验证和授权，以确保只有授权的 Broker 才可以加入集群并具有生产者和消费者的权限。Zookeeper 中存储了 Kafka 集群的元数据，包括 Broker ID、Broker 地址、Topic 分区信息等。
-   - Topic 管理：Zookeeper 存储了 Kafka 集群的元数据，其中包括 Kafka Topic 的元数据信息。生产者和消费者在向 Broker 发送或接收消息时，需要知道 Topic 的哪些分区可用，以及哪些 Broker 是生产者和消费者可用的。
-   - Partition 协调：多个消费者可能会同时消费同一个 Topic 的不同分区，Zookeeper 用于协调消费者并确保每个消费者都仅消费 Topic 的一部分分区，以防止重复消费或竞争条件。
-   - Group 协调：Kafka 支持消费者组，Zookeeper 用于协调组的成员和分配分区，以确保每个消费者组中的消费者消费不同的 Topic 分区。在分配分区之后，Zookeeper 还用于监视消费者是否已经离线并将分区分配给其他消费者。
+1. Broker 认证：Kafka Broker 使用 Zookeeper 来实现身份验证和授权，以确保只有授权的 Broker 才可以加入集群并具有生产者和消费者的权限。Zookeeper 中存储了 Kafka 集群的元数据，包括 Broker ID、Broker 地址、Topic 分区信息等。
+2. Topic 管理：Zookeeper 存储了 Kafka 集群的元数据，其中包括 Kafka Topic 的元数据信息。生产者和消费者在向 Broker 发送或接收消息时，需要知道 Topic 的哪些分区可用，以及哪些 Broker 是生产者和消费者可用的。
+3. Partition 协调：多个消费者可能会同时消费同一个 Topic 的不同分区，Zookeeper 用于协调消费者并确保每个消费者都仅消费 Topic 的一部分分区，以防止重复消费或竞争条件。
+4. Group 协调：Kafka 支持消费者组，Zookeeper 用于协调组的成员和分配分区，以确保每个消费者组中的消费者消费不同的 Topic 分区。在分配分区之后，Zookeeper 还用于监视消费者是否已经离线并将分区分配给其他消费者。
 - 测试
 ```shell
 # 使用 telnet 命令测试：在命令行窗口中输入以下命令以测试 ZooKeeper 是否成功连接：
@@ -357,12 +359,12 @@ networks:
     name: datahub_network_new
 ```
 #### schema-registry
+Kafka Schema Registry 是一个基于 REST API 的服务，它用于管理 Kafka 数据流中使用的数据结构。Schema Registry 为序列化和反序列化消息提供了中心化的架构，并提供了以下优点：
 
-- Kafka Schema Registry 是一个基于 REST API 的服务，它用于管理 Kafka 数据流中使用的数据结构。Schema Registry 为序列化和反序列化消息提供了中心化的架构，并提供了以下优点：
-   - 数据兼容性：当数据结构发生变化时，Schema Registry 通过维护历史模式版本来确保集群中现有的生产者和消费者仍能够使用旧版本的模式进行序列化和反序列化。这使得在应用程序的演化期间，无需将集群中所有的生产者和消费者同时修改。 
-   - 数据合规性：Schema Registry 可以用于验证输入和输出数据是否符合预期的模式，以减少错误和数据质量问题。Schema Registry 还可以强制执行数据质量规则，例如模式版本控制和必填字段，以减少对数据的错误处理。 
-   - 数据清晰度：Schema Registry 可以帮助开发人员和数据工程师更好地了解现有数据结构的基本信息，例如数据类型、结构、字段名称和默认值等。 
-   - 数据重复使用：Schema Registry 可以帮助组织将现有的数据结构转换为可重用的元数据资源，以便根据需要对其进行查找、使用和共享。 
+1. 数据兼容性：当数据结构发生变化时，Schema Registry 通过维护历史模式版本来确保集群中现有的生产者和消费者仍能够使用旧版本的模式进行序列化和反序列化。这使得在应用程序的演化期间，无需将集群中所有的生产者和消费者同时修改。
+2. 数据合规性：Schema Registry 可以用于验证输入和输出数据是否符合预期的模式，以减少错误和数据质量问题。Schema Registry 还可以强制执行数据质量规则，例如模式版本控制和必填字段，以减少对数据的错误处理。
+3. 数据清晰度：Schema Registry 可以帮助开发人员和数据工程师更好地了解现有数据结构的基本信息，例如数据类型、结构、字段名称和默认值等。
+4. 数据重复使用：Schema Registry 可以帮助组织将现有的数据结构转换为可重用的元数据资源，以便根据需要对其进行查找、使用和共享。
 - 测试
 ```shell
 # 1. 确定 Docker 容器已启动，这将显示在 Docker 中启动的所有容器的列表。
@@ -379,15 +381,7 @@ curl -s -o /dev/null -w "%{http_code}" \
      http://<schema-registry-ip-address>:8081/subjects/test/versions
 ```
 #### broker
-
-- 流程
-   - 创建broker后，执行一次kafka-setup，用于初始化配置。
-```
-Attaching to kafka-setup
-kafka-setup  | DATAHUB_PRECREATE_TOPICS=false
-kafka-setup  | Pre-creation of topics has been turned off, exiting
-kafka-setup exited with code 0
-```
+用于将数据从外部系统或数据源中采集，并导入到 DataHub 中。通过将数据集成到 DataHub 中，用户可以更好地管理和探索数据，促进数据的重复利用。DataHub Broker 不仅支持数据导入，还支持实时数据采集和处理，还提供了一些高级功能，如数据转换、数据清洗、格式转换等等。
 
 - 测试
 ```shell
@@ -402,33 +396,57 @@ docker-compose exec broker bash -c "echo 'hello world' | kafka-console-producer 
 
 - 常见问题
    - service "broker" is not running container #1：检查zk是否连接成功 docker-compose logs broker。
-
+#### kafka-setup
+初始化kafka配置。
+```
+Attaching to kafka-setup
+kafka-setup  | DATAHUB_PRECREATE_TOPICS=false
+kafka-setup  | Pre-creation of topics has been turned off, exiting
+kafka-setup exited with code 0
+```
 ### 元数据管理容器
 Datahub还带有自己的界面。将您可以使用专门的容器将Datahub UI界面部署到一个单独的容器中。
-#### datahub-upgrade
+#### datahub-frontend-react
+用于展示数据平台中的各种数据和元数据，并提供搜索、过滤和导航等功能。Datahub-frontend-react 支持多种数据源，包括 Kafka、Hadoop 和 MySQL 等。它使用 TypeScript 和 React Hooks 构建，并使用 Less、Babel 和 Webpack 进行编译和打包。Datahub-frontend-react 还提供了基于 REST API 的后端服务，用于从 DataHub GMS（元数据服务）和 DataHub（数据血统服务）中检索和展示数据。
 
-- 随着 DataHub 的不断发展和迭代，新版本的 DataHub 功能和性能通常会得到改进和优化。使用 DataHub Upgrade 工具，您可以轻松地将旧版本的 DataHub 升级到最新版本，并享受最新的功能和性能优势。
+- 测试
+   - curl [http://localhost:](http://localhost:8080/)9002/,  是否正常响应。
+#### datahub-gms
+DataHub GMS 支持自定义的实体类型和属性，并包含内置的数据架构和数据血统实体类型。它还提供了用于搜索、筛选和使用元数据的简单 REST API。DataHub GMS 是基于 Apache Kafka 和 Apache Samza 构建的，并使用 Apache Kafka Connect 从各种数据源中提取元数据。此外，DataHub GMS 还与其他 LinkedIn 数据平台工具集集成，例如 DataHub、Data Pipeline 和 LinkedIn 面向数据科学家的平台 Luminol。
+
+- 测试
+   - curl [http://localhost:8080/healthcheck](http://localhost:8080/healthcheck) ,响应是否正常。
+- 常见问题
+   - "reason":"no such index [datahubpolicyindex_v2]：需先执行datahub-update镜像，更新索引。
+#### datahub-actions
+使用户能够自动化执行从数据提取到数据处理和分析等多个任务。DataHub Actions 可以轻松地将不同的工作流程组合在一起，并将这些工作流程作为单个工作流程运行。以下是 DataHub Actions 的一些主要功能：
+
+1.  自动化任务：DataHub Actions 可以自动化执行各种任务，如数据抽取、数据处理、数据转换等。
+2.  工作流程管理：DataHub Actions 可以轻松地将不同的工作流程组合在一起，并将这些工作流程作为单个工作流程运行。
+3.  调度和监控：DataHub Actions 可以根据用户的需求在指定时间自动执行任务，并提供任务监控和报告功能。
+4.  扩展性：DataHub Actions 支持自定义的 Python 代码，可以轻松扩展功能。
+5.  与其他工具的集成：DataHub Actions 可以与其他流行的数据工具和服务进行集成，如 Apache Spark、Apache Airflow、Amazon S3 等。
+### datahu更新容器
+随着 DataHub 的不断发展和迭代，新版本的 DataHub 功能和性能通常会得到改进和优化。使用 DataHub Upgrade 工具，您可以轻松地将旧版本的 DataHub 升级到最新版本，并享受最新的功能和性能优势。
+
 - DataHub Upgrade 工具的主要作用如下：
    - 支持多版本升级：DataHub Upgrade 工具可以将旧版本的 DataHub 升级到最新版本，同时支持多个中间版本，从而允许您跳过某些版本。
    - 自动化：DataHub Upgrade 工具可以自动升级 DataHub 的各个组件，包括 GMS（元数据服务）、MAE（元数据审计事件）和 DataHub（数据血统服务）等。
    - 可定制：DataHub Upgrade 工具提供了许多配置选项，允许您根据自己的需求定制升级流程。
    - 安全性：DataHub Upgrade 工具可以自动备份您的数据，并在升级期间确保数据的安全性和一致性。
-#### datahub-frontend-react
-
-- 用于展示数据平台中的各种数据和元数据，并提供搜索、过滤和导航等功能。Datahub-frontend-react 支持多种数据源，包括 Kafka、Hadoop 和 MySQL 等。它使用 TypeScript 和 React Hooks 构建，并使用 Less、Babel 和 Webpack 进行编译和打包。Datahub-frontend-react 还提供了基于 REST API 的后端服务，用于从 DataHub GMS（元数据服务）和 DataHub（数据血统服务）中检索和展示数据。 
-- 测试
-   - curl [http://localhost:](http://localhost:8080/)9002/,  是否正常响应。
-#### datahub-gms
-
--   DataHub GMS 支持自定义的实体类型和属性，并包含内置的数据架构和数据血统实体类型。它还提供了用于搜索、筛选和使用元数据的简单 REST API。DataHub GMS 是基于 Apache Kafka 和 Apache Samza 构建的，并使用 Apache Kafka Connect 从各种数据源中提取元数据。此外，DataHub GMS 还与其他 LinkedIn 数据平台工具集集成，例如 DataHub、Data Pipeline 和 LinkedIn 面向数据科学家的平台 Luminol。
-- 测试
-   - curl [http://localhost:8080/healthcheck](http://localhost:8080/healthcheck) ,响应是否正常。
-- 常见问题
-   - "reason":"no such index [datahubpolicyindex_v2]：需先执行datahub-update镜像，更新索引。
+- 不用的用户，执行的内容不同（命令eg： -u SystemUpdate  ）：
+| 用户 | 用途 |
+| --- | --- |
+| SystemUpdate | 执行系统更新的命令 |
+| NoCodeDataMigration | 执行 No-Code 数据迁移的命令。 |
+| NoCodeUpgrade  | 用于在不升级代码的情况下升级 DataHub。它将应用与 DataHub 版本关联的所有数据库迁移，以确保数据库架构是最新的，并且更新一些必要的配置值。 |
+| RestorBackup | 将尝试从最近的备份数据中进行数据升级。这是一个有用的选项，如果您的 DataHub 升级出现问题或计划升级的 DataHub 版本不兼容，则可以使用  restorebackup  选项回滚到以前的备份数据，并从该数据进行升级。 |
+| RemoveUnknownAsperts | 将尝试使用当前组件的架构定义中定义的有效  aspects  属性选项，从组件中删除未知的  aspects  选项。这通常是 DataHub 升级的一部分，以确保组件的元数据与当前的 DataHub 版本兼容，并清理组件中不再需要的元数据。 |
+| RestoreIndices | 将尝试将 Elasticsearch 中的 DataHub 索引还原为当前 DataHub 版本所需的索引版本。这通常是 DataHub 升级的一部分，以确保 Elasticsearch 中的索引与当前的 DataHub 版本兼容 |
 
 # 常用命令
 ## docker-compose命令
-```powershell
+```shell
 docker-compose build
 
 docker-compose -f docker-compose-dev.yml up
@@ -438,7 +456,7 @@ docker-compose logs zookeeper
 docker inspect  elasticsearch
 
 some-postgres -e POSTGRES_PASSWORD=mysecretpassword -d postgres:latest tail -f /dev/null
-此命令将在后台运行 Postgres 容器，并使用  tail -f /dev/null  命令启动容器。这将防止容器在完成启动任务后退出。这种方法适用于在容器中运行常驻服务（如数据库）的情况。
+# 此命令将在后台运行 Postgres 容器，并使用  tail -f /dev/null  命令启动容器。这将防止容器在完成启动任务后退出。这种方法适用于在容器中运行常驻服务（如数据库）的情况。
 ```
 ## 数据管理
 ```shell
@@ -449,6 +467,13 @@ export DATAHUB_GMS_TOKEN=xxx
 python3 -m datahub delete --urn "urn:li:dataJob:(urn:li:dataFlow:(nifi,1c92020f-0180-1000-cb79-26e7eb563c40,PROD),google)" --hard
 # 删除某个大类型下的某个平台
 python3.7 -m datahub delete --entity_type datajob --platform nifi --hard
+```
+## docker-compose升级
+```
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.11.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+yum install install docker-compose-plugin
 ```
 # 常见问题
 ## Error 401 Unauthoriz
