@@ -1,0 +1,150 @@
+networks:
+  default:
+    name: datahub_network_docker
+services:
+  broker:
+    env_file: env/broker.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.broker
+    container_name: broker
+    depends_on:
+    - zookeeper
+    hostname: broker
+    image: datahub-broker
+    ports:
+    - 19092:9092
+    - 29092:29092
+  datahub-actions:
+    env_file: env/action.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.action
+    container_name: datahub-action
+    depends_on:
+    - datahub-gms
+    hostname: actions
+    image: datahub-action
+    restart: on-failure:5
+  datahub-frontend-react:
+    env_file: env/frontend-react.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.frontend-react
+    container_name: datahub-frontend-react
+    depends_on:
+    - datahub-gms
+    hostname: datahub-frontend-react
+    image: datahub-frontend-react
+    ports:
+    - ${DATAHUB_MAPPED_FRONTEND_PORT:-9002}:9002
+    volumes:
+    - ${HOME}/.datahub/plugins:/etc/datahub/plugins
+  datahub-gms:
+    env_file: env/gms.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.gms
+    container_name: datahub-gms
+    depends_on:
+      - datahub-upgrade
+    hostname: datahub-gms
+    image: datahub-gms
+    ports:
+    - ${DATAHUB_MAPPED_GMS_PORT:-8080}:8080
+    volumes:
+    - ${HOME}/.datahub/plugins:/etc/datahub/plugins
+  datahub-upgrade:
+    env_file: env/upgrade.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.upgrade
+    command:
+    - -u
+    - SystemUpdate
+    container_name: datahub-upgrade
+    hostname: datahub-upgrade
+    image: datahub-upgrade
+    labels:
+      datahub_setup_job: true
+  elasticsearch:
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.elasticsearch
+    container_name: elasticsearch
+    healthcheck:
+      retries: 4
+      start_period: 2m
+      test:
+      - CMD-SHELL
+      - curl -sS --fail 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=0s'
+        || exit 1
+    hostname: elasticsearch
+    image: datahub-elasticsearch
+    mem_limit: 1g
+    ports:
+    - ${DATAHUB_MAPPED_ELASTIC_PORT:-9200}:9200
+    volumes:
+    - esdata:/usr/share/elasticsearch/data
+  elasticsearch-setup:
+    env_file: env/elasticsearch-setup.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.elasticsearch-setup
+    container_name: elasticsearch-setup
+    depends_on:
+    - elasticsearch
+    hostname: elasticsearch-setup
+    image: datahub-elasticsearch-setup
+    labels:
+      datahub_setup_job: true
+  kafka-setup:
+    env_file: env/kafka-setup.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.kafka-setup
+    container_name: kafka-setup
+    depends_on:
+    - broker
+    - schema-registry
+    hostname: kafka-setup
+    image: datahub-kafka-setup
+    labels:
+      datahub_setup_job: true
+  postgres-setup:
+    env_file: env/postgres-setup.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.postgres-setup
+    container_name: postgres-setup
+    hostname: postgres-setup
+    image: datahub-postgres-setup
+    labels:
+      datahub_setup_job: true
+  schema-registry:
+    env_file: env/schema-registry.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.schema-registry
+    container_name: schema-registry
+    depends_on:
+    - broker
+    hostname: schema-registry
+    image: datahub-schema-registry
+    ports:
+    - 8081:8081
+  zookeeper:
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.zookeeper
+    container_name: zookeeper
+    hostname: zookeeper
+    image: datahub-zookeeper
+    ports:
+    - 21811:2181
+    volumes:
+    - zkdata:/var/lib/zookeeper/data
+version: '2.3'
+volumes:
+  esdata: null
+  zkdata: null

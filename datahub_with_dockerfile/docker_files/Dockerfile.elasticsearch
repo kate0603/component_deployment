@@ -1,0 +1,5 @@
+FROM elasticsearch:7.10.1
+
+ENV discovery.type=single-node
+ENV xpack.security.enabled=false
+ENV ES_JAVA_OPTS="-Xms256m -Xmx512m -Dlog4j2.formatMsgNoLookups=true"

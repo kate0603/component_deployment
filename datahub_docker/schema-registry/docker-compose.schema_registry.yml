@@ -4,9 +4,6 @@ networks:
 version: "2.3"
 services:
   schema-registry:
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: schema-registry
     environment:
       - SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS=broker:29092

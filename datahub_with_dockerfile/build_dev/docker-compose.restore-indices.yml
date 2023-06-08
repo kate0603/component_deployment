@@ -1,0 +1,18 @@
+networks:
+  default:
+    name: datahub_network_docker
+services:
+  datahub-upgrade:
+    env_file: env/upgrade.env
+    build:
+      context: ../
+      dockerfile: docker_files/Dockerfile.upgrade
+    command:
+    - -u
+    - RestoreIndices
+    container_name: datahub-restore-indices
+    hostname: datahub-upgrade
+    image: datahub-upgrade
+    labels:
+      datahub_setup_job: true
+version: '2.3'
