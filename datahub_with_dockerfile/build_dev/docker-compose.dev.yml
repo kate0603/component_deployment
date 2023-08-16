@@ -40,6 +40,7 @@ services:
     - ${DATAHUB_MAPPED_FRONTEND_PORT:-9002}:9002
     volumes:
     - ${HOME}/.datahub/plugins:/etc/datahub/plugins
+    - ./auth/user.props:/datahub-frontend/conf/user.props
   datahub-gms:
     env_file: env/gms.env
     build:
@@ -48,6 +49,7 @@ services:
     container_name: datahub-gms
     depends_on:
       - datahub-upgrade
+      - postgres
     hostname: datahub-gms
     image: datahub-gms
     ports:
@@ -111,12 +113,27 @@ services:
     image: datahub-kafka-setup
     labels:
       datahub_setup_job: true
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: postgres:12.3
+    environment:
+      - POSTGRES_USER=datahub
+      - POSTGRES_PASSWORD=datahub
+      - DATAHUB_DB=datahub
+    ports:
+      - 5432:5432
+    volumes:
+      - postgresdata:/var/lib/postgresql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
   postgres-setup:
     env_file: env/postgres-setup.env
     build:
       context: ../
       dockerfile: docker_files/Dockerfile.postgres-setup
     container_name: postgres-setup
+    depends_on:
+      - postgres
     hostname: postgres-setup
     image: datahub-postgres-setup
     labels:
@@ -148,3 +165,4 @@ version: '2.3'
 volumes:
   esdata: null
   zkdata: null
+  postgresdata: null
