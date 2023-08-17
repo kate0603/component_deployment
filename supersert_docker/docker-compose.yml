@@ -1,0 +1,8 @@
+version: '3'
+services:
+  superset:
+    build: .
+    ports:
+      - '8083:8088'
+    volumes:
+      - ./superset:/home/superset/.superset
