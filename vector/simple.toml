@@ -1,0 +1,17 @@
+[sources.in]
+type = "stdin"
+
+[transforms.replace_log]
+inputs = [ "in"]
+type = "remap"
+source = '''
+  log(.)
+  name = .host
+  log(name)
+  . = replace!(.message, "World", "Vector")
+'''
+
+[sinks.out]
+inputs = ["replace_log"]
+type = "console"
+encoding.codec = "text"

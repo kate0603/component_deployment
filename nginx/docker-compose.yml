@@ -1,0 +1,20 @@
+networks:
+  nginx_network:
+    driver: bridge
+
+version: '3'
+services:
+  nginx:
+    networks:
+      - nginx_network
+    restart: always
+    container_name: nginx
+    build: .
+    ports:
+      - 8090:80
+    volumes:
+      # html 可选
+      - ./data/html:/usr/share/nginx/html
+      - ./data/logs:/var/log/nginx
+    environment:
+      - ENVIRONMENT=dev

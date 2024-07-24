@@ -1,0 +1,8 @@
+version: '3'
+services:
+  nginx:
+    restart: always
+    container_name: dc-simple_web
+    build: .
+    ports:
+      - 8091:5000

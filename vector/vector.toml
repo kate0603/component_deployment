@@ -1,0 +1,9 @@
+[sources.nginx_logs]
+  type = "file"
+  include = ["/var/log/nginx/access.log"]
+  start_at_beginning = false
+
+[sinks.vector_http]
+  type = "http"
+  inputs = ["nginx_logs"]
+  address = "http://vector:8682"

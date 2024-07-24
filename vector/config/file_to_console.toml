@@ -1,0 +1,20 @@
+[sources.in]
+type = "file"
+include = [ "/data/nginx/logs/access.log" ]
+#data_dir = "D:\\Program Files\\Vector\\data_dir"
+data_dir = "/data/vector/data_dir"
+max_line_bytes = 102400 # 100KB
+max_read_bytes = 204800 # 200KB
+
+[transforms.nginx_log]
+inputs = [ "in"]
+type = "remap"
+source = '''
+log(.)
+. = parse_nginx_log!(.message, "combined")
+'''
+
+[sinks.out]
+inputs = ["nginx_log"]
+type = "console"
+encoding.codec = "json"

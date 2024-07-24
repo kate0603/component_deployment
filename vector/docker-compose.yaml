@@ -1,0 +1,13 @@
+version: '3'
+services:
+  vector:
+    build: .
+    container_name: vector
+    volumes:
+      - /opt/nginx/data/logs:/data/nginx/logs
+      - ./config/:/etc/vector/
+      - /etc/localtime:/etc/localtime           # 跟宿主机时区保持一致
+    ports:
+      - 9598:9598
+    entrypoint: "vector -c /etc/vector/*.toml -w /etc/vector/*.toml"    # 启动命令
+    restart: always

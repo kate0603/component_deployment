@@ -1,0 +1,11 @@
+version: '3'
+services:
+  vector:
+    networks:
+      - nginx_network
+    image: timberio/vector:latest
+    volumes:
+      - ./vector.toml:/etc/vector/vector.toml
+    ports:
+      - "8682:8682"
+    command: [ "vector", "--config", "/etc/vector/vector.toml" ]
